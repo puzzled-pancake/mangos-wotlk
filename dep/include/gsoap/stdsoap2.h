@@ -813,7 +813,14 @@ Some systems allow increasing FD_SETSIZE before including sys/types.h:
 #  endif
 #  ifndef WITH_LEAN
 #   ifdef HAVE_SYS_TIMEB_H
-#    include <sys/timeb.h>              /* for ftime() */
+// Pocket Realm patch: Android's Bionic libc removed the obsolete <sys/timeb.h>
+// (and ftime()). The platform-detection macros above set HAVE_SYS_TIMEB_H for a
+// generic Linux/Unix target, but Android does not ship the header. gSOAP uses
+// clock_gettime()/gettimeofday() paths elsewhere, so simply skipping the include
+// on __ANDROID__ is sufficient and behavior-neutral.
+#    ifndef __ANDROID__
+#     include <sys/timeb.h>              /* for ftime() */
+#    endif
 #   endif
 #   include <time.h>
 #  endif

@@ -63,6 +63,13 @@ int m_ServiceStatus = -1;
 #include "Platform/PosixDaemon.h"
 #endif
 
+// Pocket Realm: in the embedded build, realmd's main(), its signal hooks,
+// its file-scope globals (stopEvent, restart, the io_context, AND its own
+// LoginDatabase definition) are all excluded. The shared LoginDatabase is
+// defined once in mangosd/Main.cpp (also compiled into libpocketrealm.so);
+// lifecycle_realmd.cpp drives the auth listener with a facade-owned io_context
+// and stop flag instead of signals. This avoids duplicate LoginDatabase symbols.
+#ifndef POCKET_EMBEDDED
 bool StartDB();
 void UnhookSignals();
 void HookSignals();
@@ -73,8 +80,10 @@ bool restart = false;
 DatabaseType LoginDatabase;                                 // Accessor to the realm server database
 
 boost::asio::io_context context;
+#endif // !POCKET_EMBEDDED
 
 // Launch the realm server
+#ifndef POCKET_EMBEDDED
 int main(int argc, char* argv[])
 {
     std::string configFile, serviceParameter;
@@ -333,7 +342,9 @@ int main(int argc, char* argv[])
     sLog.outString("Halting process...");
     return restart ? 2 : 0; // unified exit codes with mangosd
 }
+#endif // !POCKET_EMBEDDED (end of standalone main + globals block)
 
+#ifndef POCKET_EMBEDDED
 // Handle termination signals
 /** Put the global variable stopEvent to 'true' if a termination signal is caught **/
 void OnSignal(int s)
@@ -402,5 +413,6 @@ void UnhookSignals()
     signal(SIGBREAK, nullptr);
 #endif
 }
+#endif // !POCKET_EMBEDDED (end of standalone signal/db helpers)
 
 /// @}

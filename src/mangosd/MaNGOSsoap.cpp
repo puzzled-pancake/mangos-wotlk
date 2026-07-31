@@ -43,7 +43,7 @@ void SOAPThread::Work()
     if (soap_bind(&soap, m_host.c_str(), m_port, BackLogSize) < 0)
     {
         sLog.outError("MaNGOSsoap: couldn't bind to %s:%d", m_host.c_str(), m_port);
-        exit(-1);
+        POCKET_FATAL("SOAP thread failed to bind");
     }
 
     sLog.outString("MaNGOSsoap: bound to http://%s:%d", m_host.c_str(), m_port);

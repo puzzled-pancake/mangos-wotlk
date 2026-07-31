@@ -27,8 +27,15 @@
 
 #include "Common.h"
 #include "Policies/Singleton.h"
+#include "Network/AsyncListener.hpp"
 
 #include <boost/asio.hpp>
+
+#include <memory>
+#include <thread>
+#include <vector>
+
+class WorldSocket;
 
 /// Start the server
 class Master
@@ -36,6 +43,35 @@ class Master
     public:
         int Run();
         static volatile bool m_canBeKilled;
+
+#ifdef POCKET_EMBEDDED
+        // ---- Pocket Realm embeddable lifecycle hooks ----
+        // Run() is a blocking monolith (PID file, DB, world init, signals, CLI
+        // thread, network block, teardown) designed for a standalone process.
+        // The embeddable runtime (native/pocket-runtime) needs the same pieces
+        // but without signal handlers, the console thread, the blocking wait,
+        // or process exit. These hooks expose just the reusable phases so the
+        // facade can drive them individually on its own worker thread.
+        //
+        // See docs/patches/native-source-patches.md for why each exists.
+
+        // Open all four databases + version checks + realmID + clearOnline.
+        // Returns false (logged) on any failure; never calls exit().
+        bool StartDatabasesEmbedded();
+
+        // Attempt World::SetInitialWorldSettings. Under POCKET_EMBEDDED the
+        // client-data gates (.map/.dbc) throw fatal_error instead of exit()ing;
+        // returns false and sets client_data_gate when caught.
+        bool InitWorldEmbedded(bool* client_data_gate);
+
+        // Start the world thread + network listeners (loopback). No signals,
+        // no CLI thread. The io_contexts are run on internal threads.
+        bool StartNetworkEmbedded(uint32_t network_threads);
+
+        // Cooperative stop + full teardown (the tail of Run()). Resets the
+        // process-global state so a second cycle can re-init.
+        void StopEmbedded();
+#endif
 
     private:
         bool _StartDB();
@@ -48,7 +84,14 @@ class Master
 
         boost::asio::io_context m_context;
         boost::asio::io_context m_raContext;
-};
+
+#ifdef POCKET_EMBEDDED
+        // Embedded-mode owned resources (the standalone Run() uses locals).
+        std::unique_ptr<MaNGOS::Thread> m_worldThread;
+        std::unique_ptr<MaNGOS::AsyncListener<WorldSocket>> m_worldListener;
+        std::vector<std::thread> m_netThreads;
+#endif
+    };
 
 #define sMaster MaNGOS::Singleton<Master>::Instance()
 #endif

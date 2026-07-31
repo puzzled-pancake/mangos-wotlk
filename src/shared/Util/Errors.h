@@ -32,6 +32,40 @@ recompile the software in debug mode to get more details.\n\n%s(): %s\n", __FUNC
     std::abort(); \
 }
 
+/*
+ * Pocket Realm embedding patch (POCKET_EMBEDDED).
+ *
+ * CMaNGOS terminates the process on unrecoverable startup errors (missing DBC/
+ * map files, broken world tables, schema mismatches) via raw exit(1) calls,
+ * and asserts via std::abort(). That is correct for a standalone server whose
+ * process IS the failure domain, but it is forbidden across the embeddable
+ * realm boundary (DECISIONS.md #7/#8, .claude/rules/native.md): the host is an
+ * Android app process, and a bad DB must return an error code, not kill the
+ * launcher.
+ *
+ * When POCKET_EMBEDDED is defined (only the libpocketrealm.so target defines
+ * it; mangosd/realmd executables are unchanged), POCKET_FATAL(msg) throws a
+ * pocket_realm::fatal_error carrying msg, which the C-ABI facade catches at
+ * the boundary and converts to REALM_E_FATAL_STARTUP / REALM_E_BLOCKED_ON_
+ * CLIENT_DATA. The raw exit(1) startup sites are rewritten to POCKET_FATAL so
+ * the host process survives. See docs/patches/native-source-patches.md.
+ *
+ * Note: this header deliberately does NOT define pocket_realm::fatal_error
+ * (that lives in the runtime, to keep upstream dependency-free). It forward-
+ * declares only the throw helper the macro calls.
+ */
+#ifdef POCKET_EMBEDDED
+namespace pocket_realm { namespace embed {
+    [[noreturn]] void throw_fatal(const char* msg);
+} }
+// Build a message at the call site and hand it to the helper. The helper, not
+// this macro, owns the throw so upstream translation units need no exception
+// headers.
+#define POCKET_FATAL(msg) pocket_realm::embed::throw_fatal(msg)
+#else
+#define POCKET_FATAL(msg) ::exit(1)
+#endif
+
 // Just warn.
 #define WPWarning(CONDITION) \
 if (!(CONDITION)) \

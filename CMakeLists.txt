@@ -74,6 +74,16 @@ RemoveDuplicateSubstring("${CMAKE_CXX_FLAGS}" CMAKE_CXX_FLAGS)
 
 include(cmake/common.cmake)
 
+# Pocket Realm (O04): when building the embeddable runtime facade
+# (libpocketrealm.so), every static library it links (game, shared, framework,
+# playerbots) must be position-independent so it can be linked into a shared
+# library. PIC objects also link cleanly into executables, so the standalone
+# mangosd/realmd builds are unaffected. Default OFF to keep the O03 build
+# bit-for-bit identical when the runtime is not requested.
+if(BUILD_POCKET_RUNTIME)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 # Set RPATH-handing (CMake parameters)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)

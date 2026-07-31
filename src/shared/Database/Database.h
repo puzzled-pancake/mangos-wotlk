@@ -112,6 +112,16 @@ class Database
         // stop worker thread
         virtual void HaltDelayThread();
 
+#ifdef POCKET_EMBEDDED
+        // Pocket Realm: full reset (delay thread + connection pool + async conn
+        // + result queue) so a second Initialize() in the same process sees a
+        // fresh object. Exposed only under POCKET_EMBEDDED because the
+        // standalone server never re-initializes a Database within one process
+        // (it exits and lets the OS reclaim). The embedded facade needs this for
+        // the create/start/.../destroy twice-in-one-process contract (O04).
+        void StopServerEmbedded() { StopServer(); }
+#endif
+
         /// Synchronous DB queries
         inline std::unique_ptr<QueryResult> Query(const char* sql)
         {

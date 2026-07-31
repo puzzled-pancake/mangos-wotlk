@@ -961,7 +961,7 @@ void World::SetInitialWorldSettings()
     {
         sLog.outError("Correct *.map files not found in path '%smaps' or *.vmtree/*.vmtile files in '%svmaps'. Please place *.map and vmap files in appropriate directories or correct the DataDir value in the mangosd.conf file.", m_dataPath.c_str(), m_dataPath.c_str());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("race start-area map files missing (client data missing - O10 import required)");
     }
 
     ///- Loading strings. Getting no records means core load has to be canceled because no error message can be output.
@@ -969,7 +969,7 @@ void World::SetInitialWorldSettings()
     if (!sObjectMgr.LoadMangosStrings())
     {
         Log::WaitBeforeContinueIfNeed();
-        exit(1);                                            // Error message displayed in function already
+        POCKET_FATAL("LoadMangosStrings returned false (mangos_string table missing/empty)");
     }
 
     ///- Update the realm entry in the database with the realm type from the config file
@@ -1640,7 +1640,7 @@ void World::DetectDBCLang()
     {
         sLog.outError("Unable to determine your DBC Locale! (corrupt DBC?)");
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("unable to determine DBC locale (client data missing/corrupt - O10 import required)");
     }
 
     m_defaultDbcLocale = LocaleConstant(default_locale);

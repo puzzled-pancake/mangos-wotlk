@@ -70,6 +70,12 @@ DatabaseType LogsDatabase;                                  ///< Accessor to the
 uint32 realmID;                                             ///< Id of the realm
 
 /// Launch the mangos server
+// Pocket Realm: the standalone main() is excluded from the embedded build
+// (libpocketrealm.so). The process-global definitions above (WorldDatabase,
+// CharacterDatabase, LoginDatabase, LogsDatabase, realmID, m_ServiceStatus) are
+// STILL compiled so the embedded runtime has exactly one definition of each;
+// the facade drives Master::StartDatabasesEmbedded/InitWorldEmbedded/... instead.
+#ifndef POCKET_EMBEDDED
 int main(int argc, char* argv[])
 {
     std::string auctionBotConfig, configFile, playerBotConfig, aiPlayerBotConfig, serviceParameter;
@@ -228,5 +234,6 @@ int main(int argc, char* argv[])
     // 1 - shutdown at error
     // 2 - restart command used, this code can be used by restarter for restart mangosd
 }
+#endif // !POCKET_EMBEDDED
 
 /// @}

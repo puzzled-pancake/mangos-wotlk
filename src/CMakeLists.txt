@@ -60,3 +60,11 @@ endif()
 if(BUILD_LOGIN_SERVER)
   add_subdirectory(realmd)
 endif()
+
+# Pocket Realm embeddable runtime (O04). Built only when the build driver opts
+# in via BUILD_POCKET_RUNTIME + POCKET_RUNTIME_DIR. The standalone mangosd/realmd
+# are unaffected (they never define POCKET_EMBEDDED). See
+# native/pocket-runtime/CMakeLists.txt and docs/patches/native-source-patches.md.
+if(BUILD_POCKET_RUNTIME AND DEFINED POCKET_RUNTIME_DIR)
+  add_subdirectory(${POCKET_RUNTIME_DIR} ${CMAKE_BINARY_DIR}/pocket-runtime-build)
+endif()

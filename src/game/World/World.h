@@ -564,6 +564,13 @@ class World
         static uint8 GetExitCode() { return m_ExitCode; }
         static void StopNow(uint8 exitcode) { m_stopEvent = true; m_ExitCode = exitcode; }
         static bool IsStopped() { return m_stopEvent; }
+#ifdef POCKET_EMBEDDED
+        // Pocket Realm: reset the static stop/exit flags so a second realm
+        // generation can start in the same process (Strategy A re-entrancy).
+        // Only the stop gate is reset here; singleton/database re-init is
+        // handled by Master::StopEmbedded + the next _StartDB cycle.
+        static void ResetForReinit() { m_stopEvent = false; m_ExitCode = SHUTDOWN_EXIT_CODE; }
+#endif
 
         void Update(uint32 diff);
 

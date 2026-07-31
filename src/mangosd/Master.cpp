@@ -98,6 +98,7 @@ class FreezeDetectorRunnable : public MaNGOS::Runnable
 };
 
 /// Main function
+#ifndef POCKET_EMBEDDED
 int Master::Run()
 {
     /// worldd PID file creation
@@ -332,6 +333,7 @@ int Master::Run()
     ///- Exit the process with specified return value
     return World::GetExitCode();
 }
+#endif // !POCKET_EMBEDDED (Run() is standalone-only; facade uses *Embedded)
 
 /// Initialize connection to the databases
 bool Master::_StartDB()
@@ -502,6 +504,10 @@ void Master::clearOnlineAccounts()
     CharacterDatabase.Execute("UPDATE character_battleground_data SET instance_id = 0");
 }
 
+// Signal handlers are standalone-only (the embedded facade drives stop via
+// World::StopNow directly, no signals). Gated out to avoid pulling in the
+// handler's blocking-wait behavior.
+#ifndef POCKET_EMBEDDED
 /// Handle termination signals
 void Master::_OnSignal(int s)
 {
@@ -548,3 +554,120 @@ void Master::_UnhookSignals()
     signal(SIGBREAK, nullptr);
 #endif
 }
+#endif // !POCKET_EMBEDDED (signal handlers)
+
+// ============================================================
+// Pocket Realm embeddable lifecycle hooks (POCKET_EMBEDDED).
+//
+// These are the reusable phases of Run() and _StartDB(), exposed without
+// signal handlers, the console thread, the PID file, the daemon detach, the
+// blocking wait, or process exit. The facade (native/pocket-runtime) calls
+// them on its own worker thread. See Master.h and
+// docs/patches/native-source-patches.md.
+// ============================================================
+#ifdef POCKET_EMBEDDED
+
+bool Master::StartDatabasesEmbedded()
+{
+    // _StartDB already returns bool and never calls exit(); it only needs the
+    // OpenSSL providers loaded (Main.cpp does that before Master::Run). The
+    // facade loads providers once at realm_create time.
+    return _StartDB();
+}
+
+bool Master::InitWorldEmbedded(bool* client_data_gate)
+{
+    if (client_data_gate) *client_data_gate = false;
+    try
+    {
+        // SetInitialWorldSettings is the giant world-init function. Under
+        // POCKET_EMBEDDED its exit(1) gates (missing .map/.dbc) throw
+        // fatal_error via POCKET_FATAL; we catch that here and report it as a
+        // client-data gate rather than letting it kill the host.
+        sWorld.SetInitialWorldSettings();
+        return true;
+    }
+    catch (...)
+    {
+        // Hand the exception up so the facade can inspect is_fatal_error and
+        // classify. We rethrow; the caller (lifecycle.cpp) catches.
+        throw;
+    }
+}
+
+bool Master::StartNetworkEmbedded(uint32_t network_threads)
+{
+    if (network_threads == 0) network_threads = 1;
+
+    // Launch the world update thread.
+    m_worldThread.reset(new MaNGOS::Thread(new WorldRunnable));
+    m_worldThread->setPriority(MaNGOS::Priority_Highest);
+
+    // Mark the realm online (realmlist row).
+    {
+        std::string builds = AcceptableClientBuildsListStr();
+        LoginDatabase.escape_string(builds);
+        LoginDatabase.DirectPExecute(
+            "UPDATE realmlist SET realmflags = realmflags & ~(%u), population = 0, realmbuilds = '%s' WHERE id = '%u'",
+            REALM_FLAG_OFFLINE, builds.c_str(), realmID);
+    }
+
+    sWorld.StartLFGQueueThread();
+    sWorld.StartBGQueueThread();
+
+    // Network listeners. BindIP comes from config; the embedded config pins
+    // this to 127.0.0.1 (loopback-only per DECISIONS #9).
+    std::string bindIp = sConfig.GetStringDefault("BindIP", "127.0.0.1");
+    int32 port = int32(sWorld.getConfig(CONFIG_UINT32_PORT_WORLD));
+    m_worldListener.reset(new MaNGOS::AsyncListener<WorldSocket>(m_context, bindIp, port));
+
+    m_netThreads.clear();
+    for (uint32 i = 0; i < network_threads; ++i)
+        m_netThreads.emplace_back([this]() { m_context.run(); });
+
+    return true;
+}
+
+void Master::StopEmbedded()
+{
+    // Mirror the tail of Run() but without signals/CLI. The facade has already
+    // set World::StopNow before calling this.
+    if (m_worldThread)
+    {
+        m_worldThread->wait();
+    }
+
+    m_context.stop();
+    for (auto& t : m_netThreads)
+        if (t.joinable()) t.join();
+    m_netThreads.clear();
+    m_worldListener.reset();
+
+    if (m_worldThread)
+    {
+        m_worldThread->wait(); // second wait: singletons must outlive world thread
+    }
+
+    clearOnlineAccounts();
+    sMassMailMgr.Update(true);
+#ifdef ENABLE_PLAYERBOTS
+    sWorld.KickAll(true);
+#endif
+
+    LoginDatabase.DirectPExecute("UPDATE realmlist SET realmflags = realmflags | %u WHERE id = '%u'",
+                                 REALM_FLAG_OFFLINE, realmID);
+
+    CharacterDatabase.HaltDelayThread();
+    WorldDatabase.HaltDelayThread();
+    LoginDatabase.HaltDelayThread();
+    LogsDatabase.HaltDelayThread();
+
+    m_worldThread.reset();
+
+    // Reset process-global state for re-init (Strategy A). World::m_stopEvent
+    // and m_ExitCode are private statics; reset via the World hook added for
+    // embedding. Databases re-arm their Initialize() on the next _StartDB.
+    World::ResetForReinit();
+}
+
+#endif // POCKET_EMBEDDED

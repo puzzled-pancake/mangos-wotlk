@@ -382,7 +382,7 @@ void LoadDBCStores(const std::string& dataPath)
     {
         sLog.outError("DBC directory does not exist: %s", dataPath.c_str());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("DBC directory does not exist (client data missing - O10 import required)");
     }
 
     // Check the expected DBC version
@@ -393,7 +393,7 @@ void LoadDBCStores(const std::string& dataPath)
         else
             sLog.outError("Incorrect DataDir value in mangosd.conf or not found build info (outdated DBC files). Required one from builds: %s Please extract correct DBC files.", AcceptableClientBuildsListStr().c_str());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("DBC files for unsupported client build (re-extract from supported client - O10 import required)");
     }
 
     const uint32 DBCFilesCount = 96;
@@ -776,7 +776,7 @@ void LoadDBCStores(const std::string& dataPath)
     {
         sLog.outError("\nIncorrect DataDir value in mangosd.conf or ALL required *.dbc files (%d) not found by path: %sdbc", DBCFilesCount, dataPath.c_str());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("all required DBC files missing (client data missing - O10 import required)");
     }
     if (!bad_dbc_files.empty())
     {
@@ -786,7 +786,7 @@ void LoadDBCStores(const std::string& dataPath)
 
         sLog.outError("\nSome required *.dbc files (%u from %d) not found or not compatible:\n%s", (uint32)bad_dbc_files.size(), DBCFilesCount, str.c_str());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("some required DBC files missing or incompatible (client data missing - O10 import required)");
     }
 
     // Check loaded DBC files proper version
@@ -799,7 +799,7 @@ void LoadDBCStores(const std::string& dataPath)
     {
         sLog.outError("\nYou have mixed version DBC files. Please re-extract DBC files for one from client build: %s", AcceptableClientBuildsListStr().c_str());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);
+        POCKET_FATAL("outdated DBC files (re-extract from supported client - O10 import required)");
     }
 
     sLog.outString(">> Initialized %d data stores", DBCFilesCount);

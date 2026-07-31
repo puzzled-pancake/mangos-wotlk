@@ -81,6 +81,13 @@ int kb_hit_return()
 #endif
 
 /// %Thread start
+// Pocket Realm: the console stdin loop is standalone-only. The embedded facade
+// has no console (DECISIONS #8); it drives commands through realm_command ->
+// sWorld.QueueCliCommand directly. The ChatHandler command implementations
+// (HandleServerExitCommand, HandleAccountCreateCommand, ... in game/Chat) ARE
+// compiled for the embedded build because libgame's command table references
+// them.
+#ifndef POCKET_EMBEDDED
 void CliRunnable::run()
 {
     ///- Init new SQL thread for the world database (one connection call enough)
@@ -154,3 +161,4 @@ void CliRunnable::run()
     ///- End the database thread
     WorldDatabase.ThreadEnd();                              // free mySQL thread resources
 }
+#endif // !POCKET_EMBEDDED (console stdin loop)

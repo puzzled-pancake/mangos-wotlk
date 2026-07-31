@@ -311,7 +311,7 @@ void SQLStorageLoaderBase<DerivedLoader, StorageClass>::Load(StorageClass& store
     {
         sLog.outError("Error loading %s table (not exist?)\n", store.GetTableName());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);                                            // Stop server at loading non exited table or not accessable table
+        POCKET_FATAL("required table missing or inaccessible during SQL storage load");
     }
 
     uint32 maxRecordId = (*queryResult)[0].GetUInt32() + 1;
@@ -343,7 +343,7 @@ void SQLStorageLoaderBase<DerivedLoader, StorageClass>::Load(StorageClass& store
         recordCount = 0;
         sLog.outError("Error in %s table, probably sql file format was updated (there should be %d fields in sql).\n", store.GetTableName(), store.GetSrcFieldCount());
         Log::WaitBeforeContinueIfNeed();
-        exit(1);                                            // Stop server at loading broken or non-compatible table.
+        POCKET_FATAL("table field-count mismatch (broken or incompatible SQL format)");
     }
 
     // get struct size

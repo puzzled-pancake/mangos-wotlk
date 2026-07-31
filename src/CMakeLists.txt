@@ -25,11 +25,14 @@ endif()
 if(BUILD_PLAYERBOTS)
   include(FetchContent)
 
+  # Pocket Realm patch: drop GIT_REPOSITORY/GIT_TAG so FetchContent uses the
+  # SOURCE_DIR we mirror from the pinned submodule (build_native.py
+  # ensure_playerbots). With GIT_REPOSITORY present, FetchContent_Populate
+  # re-clones upstream `master` at whatever the latest commit is, overwriting our
+  # audited, pinned, and locally-patched mirror -- an unpinned, unpatched build.
   FetchContent_Declare(
     PlayerBots
     SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/modules/PlayerBots"
-    GIT_REPOSITORY "https://github.com/cmangos/playerbots.git"
-    GIT_TAG "master"
   )
 
   FetchContent_GetProperties(PlayerBots)

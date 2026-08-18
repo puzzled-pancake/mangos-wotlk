@@ -616,7 +616,7 @@ bool Master::StartNetworkEmbedded(uint32_t network_threads)
     sWorld.StartBGQueueThread();
 
     // Network listeners. BindIP comes from config; the embedded config pins
-    // this to 127.0.0.1 (loopback-only per DECISIONS #9).
+    // this to 127.0.0.1 (loopback-only by design).
     std::string bindIp = sConfig.GetStringDefault("BindIP", "127.0.0.1");
     int32 port = int32(sWorld.getConfig(CONFIG_UINT32_PORT_WORLD));
     m_worldListener.reset(new MaNGOS::AsyncListener<WorldSocket>(m_context, bindIp, port));

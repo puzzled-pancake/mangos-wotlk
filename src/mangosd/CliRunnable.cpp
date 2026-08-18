@@ -82,7 +82,7 @@ int kb_hit_return()
 
 /// %Thread start
 // Pocket Realm: the console stdin loop is standalone-only. The embedded facade
-// has no console (DECISIONS #8); it drives commands through realm_command ->
+// has no console; it drives commands through realm_command ->
 // sWorld.QueueCliCommand directly. The ChatHandler command implementations
 // (HandleServerExitCommand, HandleAccountCreateCommand, ... in game/Chat) ARE
 // compiled for the embedded build because libgame's command table references

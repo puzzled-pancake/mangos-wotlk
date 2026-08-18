@@ -39,7 +39,7 @@ recompile the software in debug mode to get more details.\n\n%s(): %s\n", __FUNC
  * map files, broken world tables, schema mismatches) via raw exit(1) calls,
  * and asserts via std::abort(). That is correct for a standalone server whose
  * process IS the failure domain, but it is forbidden across the embeddable
- * realm boundary (DECISIONS.md #7/#8, .claude/rules/native.md): the host is an
+ * realm boundary: the host is an
  * Android app process, and a bad DB must return an error code, not kill the
  * launcher.
  *
